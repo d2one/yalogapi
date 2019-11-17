@@ -2,6 +2,10 @@ package clickhouse
 
 import (
 	"fmt"
+
+	"github.com/go-ozzo/ozzo-validation/is"
+
+	validation "github.com/go-ozzo/ozzo-validation"
 )
 
 type ClickhouseConfig struct {
@@ -25,5 +29,16 @@ func (config *ClickhouseConfig) getDSN() string {
 		config.User,
 		config.Password,
 		config.Database,
+	)
+}
+
+func (config ClickhouseConfig) Validate() error {
+	return validation.ValidateStruct(&config,
+		// Name cannot be empty, and the length must be between 5 and 20.
+		validation.Field(&config.Host, validation.Required, is.Host),
+		validation.Field(&config.Port, validation.Required),
+		validation.Field(&config.User, validation.Required),
+		validation.Field(&config.Password, validation.Required),
+		validation.Field(&config.Database, validation.Required),
 	)
 }
