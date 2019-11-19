@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/d2one/yalogapi/internal/yalogapi"
 	"github.com/spf13/cobra"
@@ -26,8 +25,8 @@ to quickly create a Cobra application.`,
 var conf *yalogapi.Config
 
 func runCommand(cmd *cobra.Command, args []string) {
-	fmt.Println(strings.Join(args, " "))
-	fmt.Println(conf)
+	yalogapi := yalogapi.NewYaLogApi(conf)
+	yalogapi.Run()
 }
 
 func init() {
