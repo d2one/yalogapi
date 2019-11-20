@@ -8,7 +8,7 @@ import (
 	validation "github.com/go-ozzo/ozzo-validation"
 )
 
-type ClickhouseConfig struct {
+type Config struct {
 	Host        string `mapstructure:"host"`
 	Port        int    `mapstructure:"port"`
 	User        string `mapstructure:"user"`
@@ -18,11 +18,11 @@ type ClickhouseConfig struct {
 	Database    string `mapstructure:"database"`
 }
 
-func NewClickhouseConfig() (*ClickhouseConfig, error) {
-	return &ClickhouseConfig{}, nil
+func NewClickhouseConfig() (*Config, error) {
+	return &Config{}, nil
 }
 
-func (config *ClickhouseConfig) getDSN() string {
+func (config *Config) getDSN() string {
 	return fmt.Sprintf("tcp://%s:%d?username=%s&password=%s&database=%s&read_timeout=10&write_timeout=20",
 		config.Host,
 		config.Port,
@@ -32,7 +32,7 @@ func (config *ClickhouseConfig) getDSN() string {
 	)
 }
 
-func (config ClickhouseConfig) Validate() error {
+func (config Config) Validate() error {
 	return validation.ValidateStruct(&config,
 		// Name cannot be empty, and the length must be between 5 and 20.
 		validation.Field(&config.Host, validation.Required, is.Host),

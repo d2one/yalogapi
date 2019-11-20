@@ -1,7 +1,10 @@
 package yalogapi
 
 import (
+	"time"
+
 	"github.com/d2one/yalogapi/internal/clickhouse"
+	"github.com/d2one/yalogapi/internal/logsapi"
 	validation "github.com/go-ozzo/ozzo-validation"
 )
 
@@ -10,12 +13,28 @@ type Config struct {
 	EndDate    string
 	Mode       string
 	Source     string
-	Clickhouse *clickhouse.ClickhouseConfig `mapstructure:"clickhouse"`
-	// logsapi    *logsapi.Config
+	Clickhouse *clickhouse.Config `mapstructure:"clickhouse"`
+	Logsapi    *logsapi.Config    `mapstructure:"logsapi"`
 }
 
 func NewYalogapiConfig() (*Config, error) {
 	return &Config{}, nil
+}
+
+func (config *Config) Init() {
+	if config.Mode == "" {
+		return
+	}
+	var t time.Time
+	switch config.Mode {
+	case "regular":
+		t = time.Now().Add(-48 * time.Hour)
+		break
+	case "regular_early":
+		t = time.Now().Add(-24 * time.Hour)
+	}
+	config.StartDate = t.Format("20060102")
+	config.EndDate = config.StartDate
 }
 
 func (config Config) Validate() error {

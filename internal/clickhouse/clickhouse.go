@@ -7,7 +7,7 @@ import (
 )
 
 type clickhouse struct {
-	config  *ClickhouseConfig
+	config  *Config
 	connect *sqlx.DB
 }
 
@@ -17,6 +17,15 @@ func NewClickhouse() *clickhouse {
 
 func (clickhouse *clickhouse) conn() (*sqlx.DB, error) {
 	return sqlx.Open("clickhouse", clickhouse.config.getDSN())
+}
+
+func (clickhouse *clickhouse) IsDataPresent(startDate string, endDate string, source string) (bool, error) {
+	// connect, err := clickhouse.conn()
+	// if err != nil {
+	// 	return false, err
+	// }
+	// connect.Select
+	return true, nil
 }
 
 func main() {
