@@ -1,8 +1,9 @@
 package yalogapi
 
 import (
-	"errors"
 	"fmt"
+
+	"github.com/pkg/errors"
 )
 
 type YaLogApi struct {
