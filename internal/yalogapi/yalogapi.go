@@ -3,10 +3,11 @@ package yalogapi
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/pkg/errors"
 	"io/ioutil"
 	"net/http"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 type YaLogApi struct {
@@ -61,7 +62,7 @@ func NewYaLogApi(config *Config) *YaLogApi {
 func (yalogapi *YaLogApi) Run() {
 	userRequest := NewUserRequest(yalogapi.config)
 
-	apiRequests, err := GetApiRequests(userRequest)
+	apiRequests, err := getAPIRequests(userRequest)
 	if err != nil {
 		fmt.Println("error when get evaluation from api")
 	}
@@ -71,36 +72,19 @@ func (yalogapi *YaLogApi) Run() {
 
 // getEvaluation returns estimation of Logs API
 func getEvaluation(userRequest *UserRequest) (LogRequestEvaluation, error) {
-	url := fmt.Sprintf("%s/management/v1/counter/%s/logrequests/evaluate?", Host, userRequest.CounterID)
+	uri := fmt.Sprintf(
+		"%s/management/v1/counter/%s/logrequests/evaluate?",
+		Host,
+		userRequest.CounterID,
+	)
 
-	request, err := http.NewRequest("GET", url, nil)
+	response, err := doGetRequest(uri, userRequest)
 	if err != nil {
-		return LogRequestEvaluation{}, errors.Wrap(err, "error when create new request")
-	}
-
-	request.Header.Add("Authorization", "OAuth "+userRequest.Token)
-
-	query := request.URL.Query()
-	query.Add("date1", userRequest.StartDate)
-	query.Add("date2", userRequest.EndDate)
-	query.Add("source", userRequest.Source)
-	query.Add("fields", strings.Join(userRequest.Fields, ","))
-
-	request.URL.RawQuery = query.Encode()
-
-	client := &http.Client{}
-	response, err := client.Do(request)
-	if err != nil {
-		return LogRequestEvaluation{}, errors.Wrap(err, "error when do request")
-	}
-
-	result, error := ioutil.ReadAll(response.Body)
-	if error != nil {
-		return LogRequestEvaluation{}, errors.Wrap(err, "error when read response")
+		return LogRequestEvaluation{}, err
 	}
 
 	logRequest := EvaluateResponse{}
-	err = json.Unmarshal(result, &logRequest)
+	err = json.Unmarshal(response, &logRequest)
 	if err != nil {
 		return LogRequestEvaluation{}, errors.Wrap(err, "error when Unmarshal")
 	}
@@ -108,9 +92,53 @@ func getEvaluation(userRequest *UserRequest) (LogRequestEvaluation, error) {
 	return logRequest.LogRequestEvaluation, nil
 }
 
-func GetApiRequests(request *UserRequest) ([]UserRequest, error) {
-	evaluate, err := getEvaluation(request)
+func doGetRequest(uri string, userRequest *UserRequest) ([]byte, error) {
+	request, err := http.NewRequest("GET", uri, nil)
 
+	errorMessage := fmt.Sprintf("Yandex api request failed. Uri %s", uri)
+
+	if err != nil {
+		return nil, errors.Wrapf(err, errorMessage)
+	}
+
+	request.Header.Add(
+		"Authorization",
+		fmt.Sprintf("OAuth %s", userRequest.Token),
+	)
+
+	query := request.URL.Query()
+
+	query.Add("date1", userRequest.StartDate)
+	query.Add("date2", userRequest.EndDate)
+
+	if len(userRequest.Source) > 0 {
+		query.Add("source", userRequest.Source)
+	}
+
+	if len(userRequest.Fields) > 0 {
+		query.Add("fields", strings.Join(userRequest.Fields, ","))
+	}
+	request.URL.RawQuery = query.Encode()
+
+	client := &http.Client{}
+	response, err := client.Do(request)
+
+	if err != nil {
+		return nil, errors.Wrapf(err, errorMessage)
+	}
+
+	defer response.Body.Close()
+	body, err := ioutil.ReadAll(response.Body)
+
+	if err != nil {
+		return nil, errors.Wrapf(err, errorMessage, uri)
+	}
+
+	return body, nil
+}
+
+func getAPIRequests(request *UserRequest) ([]UserRequest, error) {
+	evaluate, err := getEvaluation(request)
 	if err != nil {
 		return nil, err
 	}
