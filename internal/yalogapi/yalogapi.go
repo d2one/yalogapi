@@ -1,9 +1,12 @@
 package yalogapi
 
 import (
+	"encoding/json"
 	"fmt"
-
 	"github.com/pkg/errors"
+	"io/ioutil"
+	"net/http"
+	"strings"
 )
 
 type YaLogApi struct {
@@ -27,6 +30,8 @@ type LogRequestEvaluation struct {
 type EvaluateResponse struct {
 	LogRequestEvaluation LogRequestEvaluation `json:"log_request_evaluation"`
 }
+
+const Host string = "https://api-metrika.yandex.ru"
 
 func NewUserRequest(config *Config) *UserRequest {
 	var fields []string
@@ -54,16 +59,53 @@ func NewYaLogApi(config *Config) *YaLogApi {
 }
 
 func (yalogapi *YaLogApi) Run() {
-	fmt.Println(yalogapi.config)
-	fmt.Println(yalogapi.config.Clickhouse)
-	fmt.Println(yalogapi.config.Logsapi)
-	fmt.Println("YaLogApi")
-	// userRequest := NewUserRequest(yalogapi.config)
+	userRequest := NewUserRequest(yalogapi.config)
 
+	apiRequests, err := GetApiRequests(userRequest)
+	if err != nil {
+		fmt.Println("error when get evaluation from api")
+	}
+
+	fmt.Println(apiRequests)
 }
 
-func getEvaluation(request *UserRequest) (LogRequestEvaluation, error) {
-	return LogRequestEvaluation{true, 20}, nil
+// getEvaluation returns estimation of Logs API
+func getEvaluation(userRequest *UserRequest) (LogRequestEvaluation, error) {
+	url := fmt.Sprintf("%s/management/v1/counter/%s/logrequests/evaluate?", Host, userRequest.CounterID)
+
+	request, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return LogRequestEvaluation{}, errors.Wrap(err, "error when create new request")
+	}
+
+	request.Header.Add("Authorization", "OAuth "+userRequest.Token)
+
+	query := request.URL.Query()
+	query.Add("date1", userRequest.StartDate)
+	query.Add("date2", userRequest.EndDate)
+	query.Add("source", userRequest.Source)
+	query.Add("fields", strings.Join(userRequest.Fields, ","))
+
+	request.URL.RawQuery = query.Encode()
+
+	client := &http.Client{}
+	response, err := client.Do(request)
+	if err != nil {
+		return LogRequestEvaluation{}, errors.Wrap(err, "error when do request")
+	}
+
+	result, error := ioutil.ReadAll(response.Body)
+	if error != nil {
+		return LogRequestEvaluation{}, errors.Wrap(err, "error when read response")
+	}
+
+	logRequest := EvaluateResponse{}
+	err = json.Unmarshal(result, &logRequest)
+	if err != nil {
+		return LogRequestEvaluation{}, errors.Wrap(err, "error when Unmarshal")
+	}
+
+	return logRequest.LogRequestEvaluation, nil
 }
 
 func GetApiRequests(request *UserRequest) ([]UserRequest, error) {
