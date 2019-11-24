@@ -62,11 +62,11 @@ func (yalogapi *YaLogApi) Run() {
 
 }
 
-func getEvaluation(request UserRequest) (LogRequestEvaluation, error) {
+func getEvaluation(request *UserRequest) (LogRequestEvaluation, error) {
 	return LogRequestEvaluation{true, 20}, nil
 }
 
-func GetApiRequests(request UserRequest) ([]UserRequest, error) {
+func GetApiRequests(request *UserRequest) ([]UserRequest, error) {
 	evaluate, err := getEvaluation(request)
 
 	if err != nil {
@@ -79,7 +79,15 @@ func GetApiRequests(request UserRequest) ([]UserRequest, error) {
 
 	requests := []UserRequest{}
 	if evaluate.Possible {
-		requests = append(requests, request)
+		config := UserRequest{
+			Token:     request.Token,
+			CounterID: request.CounterID,
+			StartDate: request.StartDate,
+			EndDate:   request.EndDate,
+			Source:    request.Source,
+			Fields:    request.Fields,
+		}
+		requests = append(requests, config)
 		return requests, nil
 	}
 
