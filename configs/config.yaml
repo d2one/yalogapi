@@ -3,18 +3,18 @@ log_level: INFO
 retries: 1
 retries_delay: 60  
 logsapi:  
-  token: "<your_token>"
-  counter_id: "<your_counter_id>"
+  token: ""
+  counter_id: ""
   visits_fields:
   - ym:s:counterID
   - ym:s:dateTime
   - ym:s:date
-  - ym:s:firstPartyCookie
+  #- ym:s:firstPartyCookie
   hits_fields:
   - ym:pv:counterID
   - ym:pv:dateTime
   - ym:pv:date
-  - ym:pv:firstPartyCookie
+  #- ym:pv:firstPartyCookie
 clickhouse:
   host: localhost
   port: 8123
