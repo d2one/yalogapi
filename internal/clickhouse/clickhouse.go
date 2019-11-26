@@ -24,7 +24,7 @@ func (clickhouse *clickhouse) IsDataPresent(startDate string, endDate string, so
 	// if err != nil {
 	// 	return false, err
 	// }
-	// connect.Select
+	// connect.Select("SEE")
 	return true, nil
 }
 

@@ -1,4 +1,4 @@
-package clickhouse
+package yalogapi
 
 type Types struct {
 	YmSCounterID struct {
