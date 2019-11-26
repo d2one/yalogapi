@@ -15,7 +15,7 @@ type Config struct {
 	Source     string
 	Clickhouse *clickhouse.Config `mapstructure:"clickhouse"`
 	Logsapi    *logsapi.Config    `mapstructure:"logsapi"`
-	Types      *Types             `mapstructure:"chtypes"`
+	Types      *Types
 }
 
 func NewYalogapiConfig() (*Config, error) {

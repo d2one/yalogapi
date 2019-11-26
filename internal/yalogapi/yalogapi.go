@@ -7,11 +7,30 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/d2one/yalogapi/internal/clickhouse"
 	"github.com/pkg/errors"
 )
 
 type YaLogApi struct {
-	config *Config
+	config     *Config
+	clickhouse *clickhouse.Clickhouse
+}
+
+func NewYaLogApi(config *Config) *YaLogApi {
+	config.Init()
+	return &YaLogApi{config: config, clickhouse: clickhouse.NewClickhouse(config.Clickhouse)}
+}
+
+func (yalogapi *YaLogApi) Run() {
+	fmt.Println(yalogapi.config.Types)
+	// userRequest := NewUserRequest(yalogapi.config)
+
+	// apiRequests, err := getAPIRequests(userRequest)
+	// if err != nil {
+	// 	fmt.Println("error when get evaluation from api")
+	// }
+
+	// fmt.Println(apiRequests)
 }
 
 type UserRequest struct {
@@ -52,22 +71,6 @@ func NewUserRequest(config *Config) *UserRequest {
 		Source:    config.Source,
 		Fields:    fields,
 	}
-}
-
-func NewYaLogApi(config *Config) *YaLogApi {
-	config.Init()
-	return &YaLogApi{config: config}
-}
-
-func (yalogapi *YaLogApi) Run() {
-	userRequest := NewUserRequest(yalogapi.config)
-
-	apiRequests, err := getAPIRequests(userRequest)
-	if err != nil {
-		fmt.Println("error when get evaluation from api")
-	}
-
-	fmt.Println(apiRequests)
 }
 
 // getEvaluation returns estimation of Logs API
