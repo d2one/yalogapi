@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -26,12 +27,15 @@ func (yalogapi *YaLogApi) Run() {
 	fmt.Println(yalogapi.config.Types)
 	// userRequest := NewUserRequest(yalogapi.config)
 
-	// apiRequests, err := getAPIRequests(userRequest)
+	// result, err := createTask(userRequest)
 	// if err != nil {
-	// 	fmt.Println("error when get evaluation from api")
+	// 	fmt.Println("error when do request")
 	// }
 
-	// fmt.Println(apiRequests)
+	// status, partCount, err := getStatus(result, userRequest.Token)
+
+	// fmt.Println(status)
+	// fmt.Println(partCount)
 }
 
 type UserRequest struct {
@@ -50,6 +54,30 @@ type LogRequestEvaluation struct {
 
 type EvaluateResponse struct {
 	LogRequestEvaluation LogRequestEvaluation `json:"log_request_evaluation"`
+}
+
+type TaskLog struct {
+	RequestID int    `json:"request_id"`
+	CounterID int    `json:"counter_id"`
+	Status    string `json:"status"`
+}
+
+type CreateTaskResponse struct {
+	TaskLog TaskLog `json:"log_request"`
+}
+
+type LogPart struct {
+	PartNumber int `json:"part_number"`
+	Size       int `json:"size"`
+}
+
+type TaskStatus struct {
+	Status string `json:"status"`
+	Parts  []LogPart
+}
+
+type GetStatusResponse struct {
+	TaskStatus TaskStatus `json:"log_request"`
 }
 
 const Host string = "https://api-metrika.yandex.ru"
@@ -82,7 +110,8 @@ func getEvaluation(userRequest UserRequest) (LogRequestEvaluation, error) {
 		userRequest.CounterID,
 	)
 
-	response, err := doGetRequest(uri, userRequest)
+	query := createUserQuery(userRequest)
+	response, err := doRequest("GET", uri, userRequest.Token, query)
 	if err != nil {
 		return LogRequestEvaluation{}, err
 	}
@@ -96,21 +125,8 @@ func getEvaluation(userRequest UserRequest) (LogRequestEvaluation, error) {
 	return logRequest.LogRequestEvaluation, nil
 }
 
-func doGetRequest(uri string, userRequest UserRequest) ([]byte, error) {
-	request, err := http.NewRequest("GET", uri, nil)
-
-	errorMessage := fmt.Sprintf("Yandex api request failed. Uri %s", uri)
-
-	if err != nil {
-		return nil, errors.Wrapf(err, errorMessage)
-	}
-
-	request.Header.Add(
-		"Authorization",
-		fmt.Sprintf("OAuth %s", userRequest.Token),
-	)
-
-	query := request.URL.Query()
+func createUserQuery(userRequest UserRequest) url.Values {
+	query := url.Values{}
 
 	query.Add("date1", userRequest.StartDate)
 	query.Add("date2", userRequest.EndDate)
@@ -122,6 +138,24 @@ func doGetRequest(uri string, userRequest UserRequest) ([]byte, error) {
 	if len(userRequest.Fields) > 0 {
 		query.Add("fields", strings.Join(userRequest.Fields, ","))
 	}
+
+	return query
+}
+
+func doRequest(method string, uri string, token string, query url.Values) ([]byte, error) {
+	request, err := http.NewRequest(method, uri, nil)
+
+	errorMessage := fmt.Sprintf("Yandex api request failed. Uri %s", uri)
+
+	if err != nil {
+		return nil, errors.Wrapf(err, errorMessage)
+	}
+
+	request.Header.Add(
+		"Authorization",
+		fmt.Sprintf("OAuth %s", token),
+	)
+
 	request.URL.RawQuery = query.Encode()
 
 	client := &http.Client{}
@@ -213,4 +247,45 @@ func getNewDates(from string, to string, daysInPeriod int, partNumber int) (stri
 	}
 
 	return newDateFrom.Format("2006-01-02"), newDateTo.Format("2006-01-02")
+}
+
+// createTask method creates a Logs API task to generate data
+func createTask(userRequest UserRequest) (TaskLog, error) {
+	uri := fmt.Sprintf(
+		"%s/management/v1/counter/%s/logrequests/?",
+		Host,
+		userRequest.CounterID,
+	)
+
+	query := createUserQuery(userRequest)
+	response, err := doRequest("POST", uri, userRequest.Token, query)
+
+	сreateTaskResponse := CreateTaskResponse{}
+	err = json.Unmarshal(response, &сreateTaskResponse)
+	if err != nil {
+		return TaskLog{}, err
+	}
+
+	return сreateTaskResponse.TaskLog, nil
+}
+
+// getStatus returns current tasks status and part counts
+func getStatus(taskLog TaskLog, token string) (string, int, error) {
+	uri := fmt.Sprintf(
+		"%s/management/v1/counter/%d/logrequest/%d",
+		Host,
+		taskLog.CounterID,
+		taskLog.RequestID,
+	)
+
+	query := url.Values{}
+	response, err := doRequest("GET", uri, token, query)
+
+	getStatusResponse := GetStatusResponse{}
+	err = json.Unmarshal(response, &getStatusResponse)
+	if err != nil {
+		return "", 0, err
+	}
+
+	return getStatusResponse.TaskStatus.Status, len(getStatusResponse.TaskStatus.Parts), nil
 }
