@@ -13,11 +13,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-type YaLogApi struct {
-	config     *Config
-	clickhouse *clickhouse.Clickhouse
-}
-
+// NewYaLogApi create YaLogApi
 func NewYaLogApi(config *Config) *YaLogApi {
 	config.Init()
 	return &YaLogApi{config: config, clickhouse: clickhouse.NewClickhouse(config.Clickhouse)}
@@ -38,50 +34,9 @@ func (yalogapi *YaLogApi) Run() {
 	// fmt.Println(partCount)
 }
 
-type UserRequest struct {
-	Token     string
-	CounterID string
-	StartDate string
-	EndDate   string
-	Source    string
-	Fields    []string
-}
+const host string = "https://api-metrika.yandex.ru"
 
-type LogRequestEvaluation struct {
-	Possible               bool `json:"possible"`
-	MaxPossibleDayQuantity int  `json:"max_possible_day_quantity"`
-}
-
-type EvaluateResponse struct {
-	LogRequestEvaluation LogRequestEvaluation `json:"log_request_evaluation"`
-}
-
-type TaskLog struct {
-	RequestID int    `json:"request_id"`
-	CounterID int    `json:"counter_id"`
-	Status    string `json:"status"`
-}
-
-type CreateTaskResponse struct {
-	TaskLog TaskLog `json:"log_request"`
-}
-
-type LogPart struct {
-	PartNumber int `json:"part_number"`
-	Size       int `json:"size"`
-}
-
-type TaskStatus struct {
-	Status string `json:"status"`
-	Parts  []LogPart
-}
-
-type GetStatusResponse struct {
-	TaskStatus TaskStatus `json:"log_request"`
-}
-
-const Host string = "https://api-metrika.yandex.ru"
-
+// NewUserRequest create UserRequest
 func NewUserRequest(config *Config) UserRequest {
 	var fields []string
 	switch config.Source {
@@ -106,7 +61,7 @@ func NewUserRequest(config *Config) UserRequest {
 func getEvaluation(userRequest UserRequest) (LogRequestEvaluation, error) {
 	uri := fmt.Sprintf(
 		"%s/management/v1/counter/%s/logrequests/evaluate?",
-		Host,
+		host,
 		userRequest.CounterID,
 	)
 
@@ -253,7 +208,7 @@ func getNewDates(from string, to string, daysInPeriod int, partNumber int) (stri
 func createTask(userRequest UserRequest) (TaskLog, error) {
 	uri := fmt.Sprintf(
 		"%s/management/v1/counter/%s/logrequests/?",
-		Host,
+		host,
 		userRequest.CounterID,
 	)
 
@@ -273,7 +228,7 @@ func createTask(userRequest UserRequest) (TaskLog, error) {
 func getStatus(taskLog TaskLog, token string) (string, int, error) {
 	uri := fmt.Sprintf(
 		"%s/management/v1/counter/%d/logrequest/%d",
-		Host,
+		host,
 		taskLog.CounterID,
 		taskLog.RequestID,
 	)
