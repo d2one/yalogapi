@@ -16,11 +16,21 @@ import (
 // NewYaLogApi create YaLogApi
 func NewYaLogApi(config *Config) *YaLogApi {
 	config.Init()
-	return &YaLogApi{config: config, clickhouse: clickhouse.NewClickhouse(config.Clickhouse)}
+	clickhouse, err := clickhouse.NewClickhouse(config.Clickhouse)
+	if err != nil {
+		fmt.Println(err)
+	}
+	return &YaLogApi{config: config, clickhouse: clickhouse}
 }
 
+// clickhouse.save_data(api_request.user_request.source,
+// 	api_request.user_request.fields,
+// 	output_data)
+
 func (yalogapi *YaLogApi) Run() {
-	fmt.Println(yalogapi.config.Types)
+	// fmt.Println(yalogapi.config.Types)
+	yalogapi.clickhouse.Check(yalogapi.config.Source, yalogapi.config.getMappedFilds())
+
 	// userRequest := NewUserRequest(yalogapi.config)
 
 	// result, err := createTask(userRequest)

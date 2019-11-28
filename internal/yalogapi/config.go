@@ -1,6 +1,7 @@
 package yalogapi
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/d2one/yalogapi/internal/clickhouse"
@@ -16,6 +17,20 @@ type Config struct {
 	Clickhouse *clickhouse.Config `mapstructure:"clickhouse"`
 	Logsapi    *logsapi.Config    `mapstructure:"logsapi"`
 	Types      *Types
+}
+
+func (config *Config) getMappedFilds() map[string]string {
+	var fields []string
+	fmt.Println(config)
+	switch config.Source {
+	case "hits":
+		fields = config.Logsapi.HitsField
+		break
+	case "visits":
+		fields = config.Logsapi.VisitsField
+		break
+	}
+	return config.Types.Build(fields)
 }
 
 func NewYalogapiConfig() (*Config, error) {
@@ -44,7 +59,7 @@ func (config Config) Validate() error {
 		validation.Field(&config.StartDate, validation.Date("2006-01-02")),
 		validation.Field(&config.EndDate, validation.Date("2006-01-02")),
 		validation.Field(&config.Mode, validation.In("history", "regular", "regular_early")),
-		validation.Field(&config.Source, validation.In("hits", "visits")),
+		validation.Field(&config.Source, validation.In("hits", "visits"), validation.Required),
 		validation.Field(&config.Clickhouse),
 	)
 

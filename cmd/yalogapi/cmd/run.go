@@ -34,6 +34,7 @@ func init() {
 
 	runCmd.Flags().StringVarP(&cfgFile, "config", "c", "", "AWS region (required)")
 	runCmd.MarkFlagRequired("config")
+	runCmd.MarkFlagRequired("source")
 
 	runCmd.PersistentFlags().StringP("mode", "m", "", "available values [history, regular, regular_early]")
 	viper.BindPFlag("mode", runCmd.PersistentFlags().Lookup("mode"))
