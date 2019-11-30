@@ -34,6 +34,7 @@ func init() {
 
 	runCmd.Flags().StringVarP(&cfgFile, "config", "c", "", "AWS region (required)")
 	runCmd.MarkFlagRequired("config")
+	runCmd.MarkFlagRequired("source")
 
 	runCmd.PersistentFlags().StringP("mode", "m", "", "available values [history, regular, regular_early]")
 	viper.BindPFlag("mode", runCmd.PersistentFlags().Lookup("mode"))
@@ -66,6 +67,19 @@ func initConfig() {
 		fmt.Printf("unable to decode into config struct, %v", err)
 		os.Exit(1)
 	}
+	chConf := viper.New()
+	chConf.SetConfigFile("configs/types.yaml")
+	if err := chConf.ReadInConfig(); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	fmt.Println("Using config for types file:", chConf.ConfigFileUsed())
+	confTypes := &yalogapi.Types{}
+	if err := chConf.Unmarshal(confTypes); err != nil {
+		fmt.Printf("unable to decode into config struct, %v", err)
+		os.Exit(1)
+	}
+	conf.Types = confTypes
 	if err := conf.Validate(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
