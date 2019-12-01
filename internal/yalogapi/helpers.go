@@ -1,5 +1,15 @@
 package yalogapi
 
+import (
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"net/url"
+	"time"
+
+	"github.com/pkg/errors"
+)
+
 func getDatePeriod(conf *Config) (string, string) {
 	if conf.Mode == "" {
 		return conf.StartDate, conf.EndDate
@@ -94,3 +104,51 @@ func getDatePeriod(conf *Config) (string, string) {
 //             end_date_str = (datetime.datetime.today() - datetime.timedelta(2)) \
 //                 .strftime(utils.DATE_FORMAT)
 //     return start_date_str, end_date_str
+
+func doRequest(method string, uri string, token string, query url.Values) ([]byte, error) {
+	request, err := http.NewRequest(method, uri, nil)
+
+	errorMessage := fmt.Sprintf("Yandex api request failed. Uri %s", uri)
+
+	if err != nil {
+		return nil, errors.Wrapf(err, errorMessage)
+	}
+
+	request.Header.Add(
+		"Authorization",
+		fmt.Sprintf("OAuth %s", token),
+	)
+
+	request.URL.RawQuery = query.Encode()
+
+	client := &http.Client{}
+	response, err := client.Do(request)
+
+	if err != nil {
+		return nil, errors.Wrapf(err, errorMessage)
+	}
+
+	defer response.Body.Close()
+	body, err := ioutil.ReadAll(response.Body)
+
+	if err != nil {
+		return nil, errors.Wrapf(err, errorMessage, uri)
+	}
+
+	return body, nil
+}
+
+// @TODO don`t validate date here
+func getNewDates(from string, to string, daysInPeriod int, partNumber int) (string, string) {
+	dateFrom, _ := time.Parse("2006-01-02", from)
+	newDateFrom := dateFrom.AddDate(0, 0, partNumber*daysInPeriod)
+
+	dateTo, _ := time.Parse("2006-01-02", to)
+	newDateTo := dateFrom.AddDate(0, 0, (partNumber+1)*daysInPeriod-1)
+
+	if newDateTo.After(dateTo) {
+		newDateTo = dateTo
+	}
+
+	return newDateFrom.Format("2006-01-02"), newDateTo.Format("2006-01-02")
+}
