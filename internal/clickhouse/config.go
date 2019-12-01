@@ -38,7 +38,7 @@ func (config Config) Validate() error {
 		validation.Field(&config.Host, validation.Required, is.Host),
 		validation.Field(&config.Port, validation.Required),
 		validation.Field(&config.User, validation.Required),
-		validation.Field(&config.Password, validation.Required),
+		// validation.Field(&config.Password, validation.Required),
 		validation.Field(&config.Database, validation.Required),
 	)
 }

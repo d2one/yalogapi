@@ -14,9 +14,9 @@ logsapi:
     - 'ym:pv:date'
 clickhouse:
   host: localhost
-  port: 8123
+  port: 9000
   user: default
-  password: default
+  password:
   visits_table: visits_all
   hits_table: hits_all
   database: default
