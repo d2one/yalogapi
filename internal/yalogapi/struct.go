@@ -14,6 +14,7 @@ type UserRequest struct {
 	EndDate   string
 	Source    string
 	Fields    []string
+	RequestID int
 }
 
 type LogRequestEvaluation struct {
