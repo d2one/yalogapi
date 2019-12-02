@@ -50,8 +50,8 @@ func (yalogapi *YaLogApi) Run() {
 	// fmt.Println(yalogapi.config.Types)
 	// yalogapi.clickhouse.Check(yalogapi.config.Source, yalogapi.config.getMappedFilds())
 
-	// userRequest := NewUserRequest(yalogapi.config)
-	// requests, _ := UserRequest.GetAPIRequests(userRequest)
+	//userRequest := NewUserRequest(yalogapi.config)
+
 	// fmt.Println(requests)
 
 	// taskLog, err := UserRequest.createTask(userRequest)
@@ -74,7 +74,15 @@ func (userRequest UserRequest) getEvaluation() (LogRequestEvaluation, error) {
 	)
 
 	query := UserRequest.buildQuery(userRequest)
-	response, err := doRequest("GET", uri, userRequest.Token, query)
+
+	httpRequest := httpRequest{
+		"GET",
+		uri,
+		userRequest.Token,
+		query,
+	}
+
+	response, err := doRequest(httpRequest)
 	if err != nil {
 		return LogRequestEvaluation{}, err
 	}
@@ -97,7 +105,15 @@ func (userRequest UserRequest) createTask() (TaskLog, error) {
 	)
 
 	query := UserRequest.buildQuery(userRequest)
-	response, err := doRequest("POST", uri, userRequest.Token, query)
+
+	httpRequest := httpRequest{
+		"POST",
+		uri,
+		userRequest.Token,
+		query,
+	}
+
+	response, err := doRequest(httpRequest)
 
 	сreateTaskResponse := CreateTaskResponse{}
 	err = json.Unmarshal(response, &сreateTaskResponse)
@@ -109,16 +125,28 @@ func (userRequest UserRequest) createTask() (TaskLog, error) {
 }
 
 // getStatus returns current tasks status and part counts
-func (userRequest UserRequest) getStatus(taskLog TaskLog) (TaskStatus, error) {
+func (userRequest UserRequest) getStatus() (TaskStatus, error) {
+	if userRequest.RequestID == 0 {
+		err := errors.New("RequestID сan not be 0")
+		return TaskStatus{}, err
+	}
+
 	uri := fmt.Sprintf(
-		"%s/management/v1/counter/%d/logrequest/%d",
+		"%s/management/v1/counter/%s/logrequest/%d",
 		host,
-		taskLog.CounterID,
-		taskLog.RequestID,
+		userRequest.CounterID,
+		userRequest.RequestID,
 	)
 
 	query := url.Values{}
-	response, err := doRequest("GET", uri, userRequest.Token, query)
+	httpRequest := httpRequest{
+		"GET",
+		uri,
+		userRequest.Token,
+		query,
+	}
+
+	response, err := doRequest(httpRequest)
 
 	getStatusResponse := GetStatusResponse{}
 	err = json.Unmarshal(response, &getStatusResponse)
@@ -144,4 +172,50 @@ func (userRequest UserRequest) buildQuery() url.Values {
 	}
 
 	return query
+}
+
+// @TODO check and return struct here
+func (userRequest UserRequest) getReadyData(part int) ([]byte, error) {
+	if userRequest.RequestID == 0 {
+		err := errors.New("RequestID сan not be 0")
+		return []byte(""), err
+	}
+
+	uri := fmt.Sprintf(
+		"%s/management/v1/counter/%s/logrequest/%d/part/%d/download",
+		host,
+		userRequest.CounterID,
+		userRequest.RequestID,
+		part,
+	)
+
+	query := url.Values{}
+	httpRequest := httpRequest{
+		"GET",
+		uri,
+		userRequest.Token,
+		query,
+	}
+
+	return doRequest(httpRequest)
+}
+
+// @TODO check and return struct here
+func (userRequest UserRequest) clean() ([]byte, error) {
+	uri := fmt.Sprintf(
+		"%s/management/v1/counter/%s/logrequest/%d/clean",
+		host,
+		userRequest.CounterID,
+		userRequest.RequestID,
+	)
+
+	query := url.Values{}
+	httpRequest := httpRequest{
+		"POST",
+		uri,
+		userRequest.Token,
+		query,
+	}
+
+	return doRequest(httpRequest)
 }
