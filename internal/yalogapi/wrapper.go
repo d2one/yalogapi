@@ -1,6 +1,7 @@
 package yalogapi
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/pkg/errors"
@@ -10,22 +11,114 @@ type ApiRequest struct {
 	Requests []UserRequest
 }
 
-type RequestWrapper struct {
-	Status  string
-	Request UserRequest
-}
-
-type Requests []RequestWrapper
+type Requests []UserRequest
 
 const requestNewStatus = "new"
 
-const requestFinishedStatus = "succeed"
+const requestCreatedStatus = "created"
 
-const requestFailedStatus = "failed"
+const requestProcessedStatus = "processed"
+
+const requestFailedStatus = "processing_failed"
+
+const requestExpiredStatus = "cleaned_automatically_as_too_old"
+
+const requestCleanedStatus = "cleaned_by_user"
 
 const dateLayout = "2006-01-02"
 
-func (userRequest UserRequest) GetAPIRequests() (Requests, error) {
+const delayBetweenRequests = 20
+
+func (yalogapi *YaLogApi) Run() {
+	userRequest := NewUserRequest(yalogapi.config)
+	requests, err := userRequest.getAPIRequests()
+
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	for _, request := range requests {
+		request.logCreate()
+
+		err := request.create()
+		if err != nil {
+			request.logRequestError(err, "Create task")
+			return
+		}
+
+		// @TODO use channel instead
+		for request.TaskStatus.Status != requestProcessedStatus {
+			// sleep
+			// get status
+			// exit if error
+		}
+
+		// save data
+		// return for clickhous
+	}
+}
+
+func (userRequest UserRequest) logCreate() {
+	fmt.Println(
+		fmt.Sprintf(
+			"Create task. CounterID: %s, date preod: %s = %s",
+			userRequest.CounterID,
+			userRequest.StartDate,
+			userRequest.EndDate,
+		),
+	)
+}
+
+func (userRequest UserRequest) logRequestError(err error, operation string) {
+	fmt.Println(
+		errors.Wrapf(
+			err,
+			"Operation %s. CounterID: %s, date preod: %s = %s",
+			operation,
+			userRequest.CounterID,
+			userRequest.StartDate,
+			userRequest.EndDate,
+		),
+	)
+}
+
+func (userRequest *UserRequest) create() error {
+	taskLog, err := userRequest.createTask()
+
+	if err != nil {
+		return errors.Wrapf(
+			err,
+			"CounterID: %s, Date period: %s - %s",
+			userRequest.CounterID,
+			userRequest.StartDate,
+			userRequest.EndDate,
+		)
+	}
+
+	userRequest.RequestID = taskLog.RequestID
+	userRequest.updateStatus(taskLog.Status)
+	return nil
+}
+
+func (userRequest *UserRequest) check() error {
+	taskStatus, err := userRequest.getStatus()
+
+	if err != nil {
+		return errors.Wrapf(
+			err,
+			"CounterID: %s, Date period: %s - %s",
+			userRequest.CounterID,
+			userRequest.StartDate,
+			userRequest.EndDate,
+		)
+	}
+
+	userRequest.TaskStatus = taskStatus
+	return nil
+}
+
+func (userRequest UserRequest) getAPIRequests() (Requests, error) {
 	evaluate, err := UserRequest.getEvaluation(userRequest)
 	if err != nil {
 		return nil, err
@@ -35,12 +128,11 @@ func (userRequest UserRequest) GetAPIRequests() (Requests, error) {
 		return nil, errors.New("Can not get data. max_possible_day_quantity = 0")
 	}
 
-	var requests Requests;
+	var requests Requests
 	if evaluate.Possible {
-		requestWrapper := RequestWrapper{}
-		requestWrapper.Request = userRequest
-		requestWrapper.Status = requestNewStatus
-		requests = append(requests, requestWrapper)
+		request := userRequest
+		request.TaskStatus.Status = requestNewStatus
+		requests = append(requests, request)
 		return requests, nil
 	}
 
@@ -60,32 +152,30 @@ func (userRequest UserRequest) GetAPIRequests() (Requests, error) {
 		userRequest.StartDate = startDate
 		userRequest.EndDate = endDate
 
-		requestWrapper := RequestWrapper{}
-		requestWrapper.Request = userRequest
-		requestWrapper.Status = requestNewStatus
-		requests = append(requests, requestWrapper)
+		request := userRequest
+		request.TaskStatus.Status = requestNewStatus
+		requests = append(requests, request)
 	}
 
 	return requests, nil
 }
 
-func (requestWrapper *RequestWrapper) updateStatus(status TaskStatus) {
-	if status.Status == requestFinishedStatus {
-		requestWrapper.Status = requestFinishedStatus
-	}
-	if status.Status == requestFailedStatus {
-		requestWrapper.Status = requestFailedStatus
+func (userRequest *UserRequest) updateStatus(status string) {
+	if status == requestFailedStatus || status == requestExpiredStatus {
+		userRequest.TaskStatus.Status = requestFailedStatus
+	} else {
+		userRequest.TaskStatus.Status = status
 	}
 }
 
-func (request UserRequest) getDays() (int, error) {
-	from := request.StartDate
+func (userRequest UserRequest) getDays() (int, error) {
+	from := userRequest.StartDate
 	dateFrom, err := time.Parse(dateLayout, from)
 	if err != nil {
 		return 0, errors.New("Can not parse start date")
 	}
 
-	to := request.EndDate
+	to := userRequest.EndDate
 	dateTo, err := time.Parse(dateLayout, to)
 	if err != nil {
 		return 0, errors.New("Can not parse end date")
