@@ -46,24 +46,6 @@ func NewUserRequest(config *Config) UserRequest {
 	}
 }
 
-func (yalogapi *YaLogApi) Run() {
-	// fmt.Println(yalogapi.config.Types)
-	// yalogapi.clickhouse.Check(yalogapi.config.Source, yalogapi.config.getMappedFilds())
-
-	//userRequest := NewUserRequest(yalogapi.config)
-
-	// fmt.Println(requests)
-
-	// taskLog, err := UserRequest.createTask(userRequest)
-	// if err != nil {
-	// 	fmt.Println("error when do request")
-	// }
-
-	// taskStatus, err := UserRequest.getStatus(userRequest, taskLog)
-
-	// fmt.Println(taskStatus)
-}
-
 const host string = "https://api-metrika.yandex.ru"
 
 func (userRequest UserRequest) getEvaluation() (LogRequestEvaluation, error) {
@@ -174,11 +156,10 @@ func (userRequest UserRequest) buildQuery() url.Values {
 	return query
 }
 
-// @TODO check and return struct here
-func (userRequest UserRequest) getReadyData(part int) ([]byte, error) {
+func (userRequest UserRequest) getReadyData(part int) ([]string, error) {
 	if userRequest.RequestID == 0 {
 		err := errors.New("RequestID сan not be 0")
-		return []byte(""), err
+		return []string{}, err
 	}
 
 	uri := fmt.Sprintf(
@@ -197,11 +178,39 @@ func (userRequest UserRequest) getReadyData(part int) ([]byte, error) {
 		query,
 	}
 
-	return doRequest(httpRequest)
+	result, err := doRequest(httpRequest)
+	if err != nil {
+		return []string{}, err
+	}
+
+	return userRequest.filterRows(result), nil
+}
+
+func (userRequest UserRequest) filterRows(rows []byte) []string {
+	var filteredResult []string
+
+	splittedResult := strings.Split(string(rows), "\n")
+	headerCount := len(strings.Split(splittedResult[0], "\t"))
+
+	for _, row := range splittedResult {
+		str := strings.Split(row, "\t")
+		colCount := len(deleteEmptyItems(str))
+
+		if colCount == headerCount {
+			filteredResult = append(filteredResult, row+"\n")
+		}
+	}
+
+	return filteredResult
 }
 
 // @TODO check and return struct here
-func (userRequest UserRequest) clean() ([]byte, error) {
+func (userRequest UserRequest) clean() (TaskStatus, error) {
+	if userRequest.RequestID == 0 {
+		err := errors.New("RequestID сan not be 0")
+		return TaskStatus{}, err
+	}
+
 	uri := fmt.Sprintf(
 		"%s/management/v1/counter/%s/logrequest/%d/clean",
 		host,
@@ -217,5 +226,16 @@ func (userRequest UserRequest) clean() ([]byte, error) {
 		query,
 	}
 
-	return doRequest(httpRequest)
+	response, err := doRequest(httpRequest)
+	if err != nil {
+		return TaskStatus{}, err
+	}
+
+	getStatusResponse := GetStatusResponse{}
+	err = json.Unmarshal(response, &getStatusResponse)
+	if err != nil {
+		return TaskStatus{}, err
+	}
+
+	return getStatusResponse.TaskStatus, nil
 }

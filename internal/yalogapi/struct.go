@@ -8,13 +8,14 @@ type YaLogApi struct {
 }
 
 type UserRequest struct {
-	Token     string
-	CounterID string
-	StartDate string
-	EndDate   string
-	Source    string
-	Fields    []string
-	RequestID int
+	Token      string
+	CounterID  string
+	StartDate  string
+	EndDate    string
+	Source     string
+	Fields     []string
+	RequestID  int
+	TaskStatus TaskStatus
 }
 
 type LogRequestEvaluation struct {
