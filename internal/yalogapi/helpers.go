@@ -113,3 +113,13 @@ func getNewDates(from string, to string, daysInPeriod int, partNumber int) (stri
 
 	return newDateFrom.Format("2006-01-02"), newDateTo.Format("2006-01-02")
 }
+
+func deleteEmptyItems(input []string) []string {
+	var output []string
+	for _, str := range input {
+		if str != "" {
+			output = append(output, str)
+		}
+	}
+	return output
+}
